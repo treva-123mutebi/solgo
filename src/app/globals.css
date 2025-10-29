@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Tailwind v4: define design tokens with @theme */
+@theme {
+  --color-sol-purple: #9945FF;
+  --color-sol-teal: #14F195;
+  --color-sol-night: #0B0E12;
+  --color-sol-ink: #1A1F2B;
+
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.25);
+  --gradient-sol: linear-gradient(90deg, #9945FF 0%, #14F195 100%);
+}
+
+/* Helpers */
+.bg-sol-gradient {
+  background-image: var(--gradient-sol);
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
