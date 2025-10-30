@@ -6,7 +6,7 @@ import Notice from './Notice';
 
 type CTA = {
     label: string;
-    action: 'route' | 'export_csv' | 'copy_trade' | 'open_top_holders' | 'create_watch' | 'suggest';
+    action: 'route' | 'export_csv' | 'swap_quote' | 'open_top_holders' | 'create_watch' | 'suggest';
     payload?: any;
 };
 type Insight = { label: string; value: string };
@@ -136,6 +136,22 @@ export default function SearchHero() {
             run(nextQuery);
             return;
         }
+        if (c.action === 'swap_quote' && c.payload) {
+            setInfoMsg('Requesting swap quote…');
+            setErrMsg(null);
+            fetch('/api/quote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(c.payload),
+            })
+                .then(r => r.json())
+                .then(j => {
+                    if (!j?.ok) throw new Error(j?.error || 'Quote failed');
+                    setInfoMsg(`Route(s): ${j.data.routeCount} • Est. outAmount: ${j.data.outAmount}`);
+                })
+                .catch(e => setErrMsg(e?.message || 'Quote failed'));
+            return;
+        }
         if (c.action === 'suggest') {
             const suggestion = typeof c.label === 'string' ? c.label : q;
             setQ(suggestion);
@@ -155,7 +171,7 @@ export default function SearchHero() {
                     <span className="bg-sol-gradient bg-clip-text text-transparent">Sol</span>
                     <span className="text-white">Go</span>
                 </div>
-                <p className="mt-3 text-sol-teal/90">Ask Solana in plain English. Get actionable CTAs.</p>
+                <p className="mt-3 text-sol-teal/90"> Prompt and Discover faster | Act Faster | Move Smarter  </p>
             </div>
 
             <div className="w-full max-w-2xl">

@@ -1,71 +1,34 @@
-// app/lib/ai/router.ts
-import type { RoutedResult, ServiceResult } from './types';
-import { classifyIntent, summarizeGeneric } from './openai';
-import { ctasFor } from './ctas';
-import { isServiceKind } from './intent';
-import { svcNewListings, svcPrice } from '@/app/providers/birdeye';
-import { svcGeneric, svcTopHolders } from '@/app/providers/comingSoon';
+import { NextRequest, NextResponse } from "next/server";
+import { AIService } from "./AIService";
 
-export class AIService {
-    async route(prompt: string, wallet: string | null): Promise<RoutedResult & { meta?: any }> {
-        const { intent, meta: aiMeta } = await classifyIntent(prompt);
 
-        let svcResult: ServiceResult;
-        const svcMeta: { name: string; latencyMs?: number; error?: string } = { name: 'unknown' };
+export const runtime = "nodejs";
 
-        const svcStart = Date.now();
-        try {
-            switch (intent.kind) {
-                case 'new_listings':
-                    svcMeta.name = 'birdeye:new_listings';
-                    svcResult = await svcNewListings();
-                    break;
-                case 'top_holders':
-                    svcMeta.name = 'comingSoon:top_holders';
-                    svcResult = await svcTopHolders(intent.token);
-                    break;
-                case 'price':
-                    svcMeta.name = 'birdeye:price';
-                    svcResult = await svcPrice(intent.token);
-                    break;
-                case 'generic_info': {
-                    svcMeta.name = 'openai:summary';
-                    const summary = await summarizeGeneric(prompt);
-                    svcResult = {
-                        kind: 'generic_info',
-                        insights: [{ label: 'Detected intent', value: 'General knowledge' }],
-                        summary,
-                        suggestions: ['See SOL price', 'New token listings', 'Top holders of CHILLGUY'],
-                    };
-                    break;
-                }
-                default:
-                    svcMeta.name = 'generic:comingSoon';
-                    svcResult = await svcGeneric();
-            }
-            svcMeta.latencyMs = Date.now() - svcStart;
-        } catch (e: any) {
-            svcMeta.latencyMs = Date.now() - svcStart;
-            svcMeta.error = String(e?.message || e);
-            return { ok: false, error: svcMeta.error, meta: { ai: aiMeta, svc: svcMeta } };
-        }
-
-        const kind = svcResult.kind;
-        if (!isServiceKind(kind)) {
-            return { ok: false, error: 'Invalid service kind', meta: { ai: aiMeta, svc: svcMeta } };
-        }
-
-        return {
-            ok: true,
-            wallet,
-            data: {
-                insights: svcResult.insights,
-                summary: svcResult.summary,
-                table: svcResult.table,
-                suggestions: svcResult.suggestions,
-                ctas: ctasFor(kind),
-            },
-            meta: { ai: aiMeta, svc: svcMeta },
-        };
+export async function POST(req: NextRequest) {
+    const { prompt, wallet } = await req.json().catch(() => ({}));
+    if (!prompt) {
+        return NextResponse.json({ ok: false, error: "Missing prompt" }, { status: 400 });
     }
+
+    const ai = new AIService();
+    const result = await ai.ask(prompt);
+
+    if (!result.ok) {
+        return NextResponse.json(result, { status: 500 });
+    }
+
+    const { summary, ctas, source, latencyMs } = result;
+
+    return NextResponse.json({
+        ok: true,
+        wallet,
+        data: {
+            summary,
+            insights: [
+                { label: "AI source", value: source },
+                { label: "Latency", value: `${latencyMs}ms` },
+            ],
+            ctas,
+        },
+    });
 }
